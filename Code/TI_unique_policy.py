@@ -46,18 +46,79 @@ def application_train_test(num_rows = None, nan_as_category = False):
     # Read data and merge
     df = pd.read_csv('../data/training-set.csv', nrows= num_rows)
     test_df = pd.read_csv('../data/testing-set.csv', nrows= num_rows)
-    test_df = test_df.drop("Next_Premium", axis=1)
+    try:
+        test_df = test_df.drop("Next_Premium", axis=1)
+    except:
+        0
+
+        
     print("Train samples: {}, test samples: {}".format(len(df), len(test_df)))
 
     df = df.append(test_df)#.reset_index()
-    policy = pd.read_csv('../data/policy_0702.csv', nrows= num_rows)
+    policy_df = pd.read_csv('../data/policy_0702.csv', nrows= num_rows)
     claim = pd.read_csv('../data/claim_0702.csv', nrows= num_rows)
-    print("Unique policy number in training and testing data: {}".format(len(np.unique(df.loc[:,'Policy_Number']))))
-    print("Unique policy number in policy data: {}".format(len(np.unique(policy.loc[:,'Policy_Number']))))
-    print("Unique policy number in claim data: {}".format(len(np.unique(claim.loc[:,'Policy_Number']))))
+    print("Unique policy number in training and testing data: {}".format(len(set(df.loc[:,'Policy_Number']))))
+    print("Unique policy number in policy data: {}".format(len(set(policy.loc[:,'Policy_Number']))))
+    print("Unique policy number in claim data: {}".format(len(set(claim.loc[:,'Policy_Number']))))
 
     policy_aggregations = {'Premium': ['min', 'max', 'mean', 'size']}
     policy_agg = policy.groupby('Policy_Number').agg(policy_aggregations)
+
+    policy_aggregations_count = {'Policy_Number': ['size']}
+    InsuredID_agg = policy.groupby("Insured's_ID").agg(policy_aggregations_count)
+
+    # Nan -> if prior & prior renew policy count 
+    PriorPolicy_agg = policy.groupby('Prior_Policy_Number').agg(policy_aggregations_count)
+
+    Vehicle_agg = policy.groupby('Vehicle_identifier').agg(policy_aggregations_count)
+
+
+
+
+lstpolicywithprior = list(set(policy['Policy_Number']) & set(policy['Prior_Policy_Number']))
+v = [a in lstpolicywithprior for a in policy['Policy_Number'] ]
+b = list(set(policy.loc[v]['Prior_Policy_Number']))
+v2 = [a in b for a in policy['Policy_Number'] ]
+b2 = list(set(policy.loc[v2]['Prior_Policy_Number']))
+
+
+
+policy.loc[policy['Policy_Number'] == '00d2f2329cb04917c70cc30b3d44f3888452044f']['Prior_Policy_Number']
+
+policy.loc[policy['Policy_Number'] == 'ae1db126f473fb6b95e202a7cd2d7d36379b577c']['Prior_Policy_Number']
+
+
+
+policy.loc[0]
+policy['Vehicle_identifier']
+
+
+
+
+policy_aggregations = {'Policy_Number': [ 'size']}
+a = policy.groupby('Vehicle_identifier').agg(policy_aggregations)['Policy_Number']['size']
+
+ policy_aggregations = {'Premium': ['min', 'max', 'mean', 'size']}
+b = policy_agg = policy.groupby('Policy_Number').agg(policy_aggregations)['Premium']['size']
+
+
+for i in policy.columns:
+    print("length og unique column =>" + i +":"+str(len(set(policy.loc[:,i]))))
+
+
+
+     bb_aggregations = {'MONTHS_BALANCE': ['min', 'max', 'size']}
+      bb, bb_cat = one_hot_encoder(bb, nan_as_category)
+    for col in bb_cat:
+        bb_aggregations[col] = ['mean']
+    bb_agg = bb.groupby('SK_ID_BUREAU').agg(bb_aggregations)
+    bb_agg.columns = pd.Index([e[0] + "_" + e[1].upper() for e in bb_agg.columns.tolist()])
+    bureau = bureau.join(bb_agg, how='left', on='SK_ID_BUREAU')
+    bureau.drop(['SK_ID_BUREAU'], axis=1, inplace= True)
+   
+
+
+
 
 
     claim_aggregations = {'Paid_Loss_Amount': ['min', 'max', 'mean', 'size']}
@@ -188,8 +249,9 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
     test_df.to_csv(submission_file_name)
 
 
-    NP_aggregations = {'Next_Premium': ['sum']}
+    NP_aggregations = {'Next_Premium': ['mean']}
     test_df_agg = test_df.groupby('Policy_Number').agg(NP_aggregations)
+
 
     
     test_df_submit = pd.read_csv('../data/testing-set.csv')
