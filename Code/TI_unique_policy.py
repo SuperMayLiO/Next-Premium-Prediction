@@ -29,13 +29,18 @@ def one_hot_encoder(df, nan_as_category = True):
     categorical_columns = [col for col in df.columns if df[col].dtype == 'object' or len(df[col].unique().tolist()) < 20]
     if ("Next_Premium" in categorical_columns): categorical_columns.remove('Next_Premium')
     if ("Policy_Number" in categorical_columns): categorical_columns.remove('Policy_Number')
+    if ("Insured's_ID" in categorical_columns): categorical_columns.remove("Insured's_ID")
+    if ("Prior_Policy_Number" in categorical_columns): categorical_columns.remove('Prior_Policy_Number')
+    if ("Vehicle_identifier" in categorical_columns): categorical_columns.remove('Vehicle_identifier')
     df = pd.get_dummies(df, columns= categorical_columns, dummy_na= nan_as_category)
     new_columns = [c for c in df.columns if c not in original_columns]
     return df, new_columns
 
 '''
+import os
+os.chdir(r"C:\Users\chingyu\Documents\code\Next-Premium-Prediction\Code")
 num_rows = None
-nan_as_category = False
+nan_as_category = True
 num_folds = 5
 stratified = False
 debug = False
@@ -58,28 +63,156 @@ def application_train_test(num_rows = None, nan_as_category = False):
     policy_df = pd.read_csv('../data/policy_0702.csv', nrows= num_rows)
     claim = pd.read_csv('../data/claim_0702.csv', nrows= num_rows)
     print("Unique policy number in training and testing data: {}".format(len(set(df.loc[:,'Policy_Number']))))
-    print("Unique policy number in policy data: {}".format(len(set(policy.loc[:,'Policy_Number']))))
+    print("Unique policy number in policy data: {}".format(len(set(policy_df.loc[:,'Policy_Number']))))
     print("Unique policy number in claim data: {}".format(len(set(claim.loc[:,'Policy_Number']))))
 
-    policy_aggregations = {'Premium': ['min', 'max', 'mean', 'size']}
+    policy =  policy_df.drop(["Insured's_ID",'Prior_Policy_Number','Vehicle_identifier','Vehicle_Make_and_Model2','Coding_of_Vehicle_Branding_&_Type','Distribution_Channel','aassured_zip','ibirth','dbirth'], axis = 1)
+    policy =  policy_df.drop(['Vehicle_Make_and_Model2','Coding_of_Vehicle_Branding_&_Type','Distribution_Channel','aassured_zip','ibirth','dbirth'], axis = 1)
+    
+
+    policy_aggregations = {'Premium': ['min', 'max', 'mean', 'size'],
+                           'Manafactured_Year_and_Month': ['min', 'max', 'mean', 'size'],
+                           'Engine_Displacement_(Cubic_Centimeter)': ['min', 'max', 'mean', 'size'],
+                           #'qpt': ['min', 'max', 'mean', 'size'],
+                           'Insured_Amount1': ['min', 'max', 'mean', 'size'],
+                           'Insured_Amount2': ['min', 'max', 'mean', 'size'],
+                           'Insured_Amount3': ['min', 'max', 'mean', 'size'],
+                           'Premium': ['min', 'max', 'mean', 'size'],
+                           'Replacement_cost_of_insured_vehicle': ['min', 'max', 'mean', 'size'],
+                           'Multiple_Products_with_TmNewa_(Yes_or_No?)': ['min', 'max', 'mean', 'size'],
+                           'lia_class': ['min', 'max', 'mean', 'size'],
+                           'plia_acc': ['min', 'max', 'mean', 'size'],
+                           #'pdmg_acc': ['min', 'max', 'mean', 'size']
+                           "Insured's_ID": ['size'],
+                           'Prior_Policy_Number': ['size'],
+                           'Vehicle_identifier': [ 'size'],
+                           }
+    
+    policy, policy_cat = one_hot_encoder(policy, nan_as_category)
+    for col in policy_cat:
+        policy_aggregations[col] = ['mean']
     policy_agg = policy.groupby('Policy_Number').agg(policy_aggregations)
+    policy_agg.columns = pd.Index([e[0] + "_" + e[1].upper() for e in policy_agg.columns.tolist()])
+
+    df = df.join(policy_agg, how='left', on='Policy_Number')
+
+
+
 
     policy_aggregations_count = {'Policy_Number': ['size']}
-    InsuredID_agg = policy.groupby("Insured's_ID").agg(policy_aggregations_count)
+    
+    # Insured's_ID
+    InsuredID_agg = policy_df.groupby("Insured's_ID").agg(policy_aggregations_count)
 
-    # Nan -> if prior & prior renew policy count 
-    PriorPolicy_agg = policy.groupby('Prior_Policy_Number').agg(policy_aggregations_count)
+    # Prior_Policy_Number
+    ## Nan -> if prior & prior renew policy count 
+    PriorPolicy_agg = policy_df.groupby('Prior_Policy_Number').agg(policy_aggregations_count)
+    ## TODO: prior premium and prior times
+    
+    # Cancellation
+    ## TDOO: one hot encoding
+    
+    # Vehicle_identifier
+    Vehicle_agg = policy_df.groupby('Vehicle_identifier').agg(policy_aggregations_count)
 
-    Vehicle_agg = policy.groupby('Vehicle_identifier').agg(policy_aggregations_count)
+    # Vehicle_Make_and_Model1
+    ## TDOO: one hot encoding
+    
+    # Vehicle_Make_and_Model2
+    ## TDOO: one hot encoding or skip 
+    
+    # Manafactured_Year_and_Month
+    ## new feature
+    
+    # Engine_Displacement_(Cubic_Centimeter)
+    ## new feature
 
-
-
+    # Imported_or_Domestic_Car
+    ## TDOO: one hot encoding
+    
+    # Coding_of_Vehicle_Branding_&_Type
+    ## TDOO: one hot encoding or skip 
+    
+    # apt
+    ## new feature
+    
+    # fpt
+    ## skip
+    
+    # Main_Insurance_Coverage_Group
+    ## TDOO: one hot encoding
+    
+    # Insurance_Coverage
+    ## TDOO: one hot encoding 
+    
+    # Insured_Amount1
+    ## new feature
+    
+    # Insured_Amount2
+    ## new feature
+    
+    # Insured_Amount3
+    ## new feature
+    
+    # Coverage_Deductible_if_applied
+    ## TDOO: one hot encoding 
+    
+    # Premium
+    ## new feature
+    
+    # Replacement_cost_of_insured_vehicle
+    ## new feature
+    
+    # Distribution_Channel
+    ## TDOO: one hot encoding or skip 
+    
+    # Multiple_Products_with_TmNewa_(Yes_or_No?)
+    ## new feature
+    
+    # lia_class
+    ## new feature
+    
+    # plia_acc
+    ## new feature
+    
+    # pdmg_acc
+    ## new feature
+    
+    # fassured
+    ## TDOO: one hot encoding
+    
+    # ibirth
+    ## TODO: change to age
+    
+    # fsex
+    ## TDOO: one hot encoding
+    
+    # fmarriage
+    ## TDOO: one hot encoding
+    
+    # aassured_zip
+    ## TDOO: one hot encoding or skip 
+    
+    # iply_area
+    ## TDOO: one hot encoding 
+    
+    # dbirth
+    ## TODO: change to age
+     
+    # fequipment1~9
+     
 
 lstpolicywithprior = list(set(policy['Policy_Number']) & set(policy['Prior_Policy_Number']))
 v = [a in lstpolicywithprior for a in policy['Policy_Number'] ]
 b = list(set(policy.loc[v]['Prior_Policy_Number']))
+
 v2 = [a in b for a in policy['Policy_Number'] ]
 b2 = list(set(policy.loc[v2]['Prior_Policy_Number']))
+
+
+v3 = [a in b2 for a in policy['Policy_Number'] ]
+b3 = list(set(policy.loc[v3]['Prior_Policy_Number']))
+
 
 
 
@@ -103,7 +236,7 @@ b = policy_agg = policy.groupby('Policy_Number').agg(policy_aggregations)['Premi
 
 
 for i in policy.columns:
-    print("length og unique column =>" + i +":"+str(len(set(policy.loc[:,i]))))
+    print("length og unique column =>" + i +":"+str(len(set(policy.loc[:,i]))) + "type: "+ str(policy[i].dtypes))
 
 
 
@@ -153,6 +286,7 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
     # Divide in training/validation and test data
     train_df = df[df['Next_Premium'].notnull()]
     test_df = df[df['Next_Premium'].isnull()]
+    
     print("Starting LightGBM. Train shape: {}, test shape: {}".format(train_df.shape, test_df.shape))
     del df
     gc.collect()
